@@ -15,6 +15,7 @@ export class ChatServer {
   private io: SocketIO.Server;
   private port: string | number;
   private botName = "chatBot";
+  private chatMessages: Message[] = [];
 
   constructor() {
     this.createApp();
@@ -30,6 +31,10 @@ export class ChatServer {
     this.app.use(cors());
     this.app.use(helmet());
     this.app.use(express.static(path.join(__dirname, "static")));
+
+    this.app.get(/^\/(?!api).*/, function (req: any, res) {
+      res.sendFile(path.join(__dirname, "static", "index.html"));
+    });
   }
 
   private createServer(): void {
@@ -60,7 +65,9 @@ export class ChatServer {
       // [User Joined]
       socket.on("joinRoom", ({ username, room }) => {
         const user = userUtils.userJoin(socket.id, username, room);
+
         socket.join(user.room);
+
         socket.emit(
           "message",
           formatMessage(this.botName, "Welcome to ChatCord!")
@@ -73,6 +80,8 @@ export class ChatServer {
             formatMessage(this.botName, `${user.username} has joined the chat`)
           );
 
+        socket.emit("chatMessages", this.chatMessages);
+
         this.io.to(user.room).emit("roomUsers", {
           room: user.room,
           users: userUtils.getRoomUsers(user.room),
@@ -81,6 +90,7 @@ export class ChatServer {
 
       // [Message Received]
       socket.on("message", (m: Message) => {
+        this.chatMessages.push(m);
         this.io.emit("message", formatMessage(m.user, m.content));
       });
 

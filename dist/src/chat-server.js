@@ -33,6 +33,7 @@ const path_1 = __importDefault(require("path"));
 class ChatServer {
     constructor() {
         this.botName = "chatBot";
+        this.chatMessages = [];
         this.createApp();
         this.configServer();
         this.createServer();
@@ -45,6 +46,9 @@ class ChatServer {
         this.app.use(cors_1.default());
         this.app.use(helmet_1.default());
         this.app.use(express_1.default.static(path_1.default.join(__dirname, "static")));
+        this.app.get(/^\/(?!api).*/, function (req, res) {
+            res.sendFile(path_1.default.join(__dirname, "static", "index.html"));
+        });
     }
     createServer() {
         this.server = http.createServer(this.app);
@@ -75,6 +79,7 @@ class ChatServer {
                 socket.broadcast
                     .to(user.room)
                     .emit("message", messages_utils_1.default(this.botName, `${user.username} has joined the chat`));
+                socket.emit("chatMessages", this.chatMessages);
                 this.io.to(user.room).emit("roomUsers", {
                     room: user.room,
                     users: users_utils_1.default.getRoomUsers(user.room),
@@ -82,6 +87,7 @@ class ChatServer {
             });
             // [Message Received]
             socket.on("message", (m) => {
+                this.chatMessages.push(m);
                 this.io.emit("message", messages_utils_1.default(m.user, m.content));
             });
             // [User Disconnected]
